@@ -24,7 +24,7 @@ public class Landscape {
     private final static Set<Landscape> cache = Collections.synchronizedSet(Collections.newSetFromMap(new WeakHashMap<>()));
 
     final File file;
-    final SeekableByteChannel channel;
+    SeekableByteChannel channel;
     final int x, y;
     final short height;
     final Properties properties;
@@ -75,7 +75,7 @@ public class Landscape {
                     StandardOpenOption.CREATE_NEW
             };
 
-        channel = Files.newByteChannel(source.toPath(), options);
+        openChannel(source.toPath(), options);
 
         if(height < 16 || height % 16 != 0)
             throw new IllegalStateException();
@@ -95,7 +95,7 @@ public class Landscape {
 
     private Landscape(int x, int y, short height, Properties properties) throws IOException {
         Path path = Files.createTempFile("temp_r_" + x + y + ".ls", "");
-        channel = Files.newByteChannel(path, StandardOpenOption.READ, StandardOpenOption.WRITE,
+        openChannel(path, StandardOpenOption.READ, StandardOpenOption.WRITE,
                 StandardOpenOption.SPARSE, StandardOpenOption.DELETE_ON_CLOSE);
         if(height < 16 || height % 16 != 0)
             throw new IllegalStateException();
@@ -107,6 +107,17 @@ public class Landscape {
         segments = new Segment[height / 16 * 16 * 16];
         LOOKUP_SIZE = height / 16 * 16 * 16 * 4;
         writeDefaults();
+    }
+
+    private void openChannel(Path path, OpenOption... options) throws IOException {
+        if(channel != null && channel.isOpen()) throw new IllegalStateException();
+        channel = Files.newByteChannel(path, options);
+    }
+
+    private void reopenChannel() throws IOException {
+        if(file == null || (channel != null && channel.isOpen())) throw new IllegalStateException();
+        channel = Files.newByteChannel(file.toPath(), StandardOpenOption.READ,
+                StandardOpenOption.WRITE, StandardOpenOption.SPARSE);
     }
 
     public File getFile() {
@@ -169,6 +180,7 @@ public class Landscape {
     public void flush() {
         final Segment[] toFlush = new Segment[height / 16 * 16 * 16];
         synchronized (lock) {
+            if(!channel.isOpen()) return;
             if (weakSegments.size() == 0) {
                 boolean empty = true;
                 for (Segment segment : segments) {
@@ -212,6 +224,7 @@ public class Landscape {
 
     public void close() throws IOException {
         synchronized (lock) {
+            if(!channel.isOpen()) return;
             channel.close();
         }
     }
@@ -224,6 +237,8 @@ public class Landscape {
     }
 
     private Segment readSegment(int index) throws IOException {
+        if(!channel.isOpen())
+            reopenChannel();
         channel.position(HEADER_SIZE + (index * 4L));
         ByteBuffer buf = ByteBuffer.allocate(4);
         channel.read(buf);
@@ -239,6 +254,8 @@ public class Landscape {
     }
 
     private void checkValidity() throws IOException {
+        if(!channel.isOpen())
+            reopenChannel();
         channel.position(HEADER_HEIGHT_POS);
         ByteBuffer buf = ByteBuffer.allocate(2);
         channel.read(buf);
@@ -272,6 +289,8 @@ public class Landscape {
     }
 
     private void writeHeader() throws IOException {
+        if(!channel.isOpen())
+            reopenChannel();
         channel.position(0);
         channel.write(
                 ByteBuffer.allocate(12)

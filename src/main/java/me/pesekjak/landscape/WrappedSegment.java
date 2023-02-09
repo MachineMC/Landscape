@@ -1,5 +1,8 @@
 package me.pesekjak.landscape;
 
+import mx.kenzie.nbt.NBTCompound;
+import org.jetbrains.annotations.Nullable;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
@@ -34,6 +37,11 @@ public class WrappedSegment implements Segment {
     }
 
     @Override
+    public boolean generated() {
+        return !(wrapped instanceof EmptySegment);
+    }
+
+    @Override
     public String[] palette() {
         synchronized (lock) {
             return wrapped.palette();
@@ -55,24 +63,46 @@ public class WrappedSegment implements Segment {
     }
 
     @Override
-    public void set(byte x, byte y, byte z, String value) {
-        synchronized (lock) {
-            if(wrapped instanceof EmptySegment)
-                wrapped = new StandardSegment(source.properties.defaultValue());
-            else if(wrapped instanceof SingleSegment)
-                wrapped = new StandardSegment(((SingleSegment) wrapped).value);
-            else if(wrapped instanceof StandardSegment && wrapped.palette().length == 256)
-                wrapped = new ComplexSegment(wrapped);
-            wrapped.set(x, y, z, value);
-        }
-    }
-
-    @Override
     public String get(byte x, byte y, byte z) {
         if(wrapped instanceof EmptySegment)
             wrapped = new SingleSegment(source.properties.defaultValue());
         synchronized (lock) {
             return wrapped.get(x, y, z);
+        }
+    }
+
+    @Override
+    public void set(byte x, byte y, byte z, String value) {
+        synchronized (lock) {
+            if(wrapped instanceof EmptySegment)
+                wrapped = new StandardSegment(source.properties.defaultValue());
+            else if(wrapped instanceof SingleSegment) {
+                if(wrapped.nbtPalette().length == 0)
+                    wrapped = new StandardSegment(((SingleSegment) wrapped).value);
+                else
+                    wrapped = new StandardSegment(wrapped);
+            } else if(wrapped instanceof StandardSegment && wrapped.palette().length == 256)
+                wrapped = new ComplexSegment(wrapped);
+            wrapped.set(x, y, z, value);
+            wrapped.resetNBT(x, y, z);
+        }
+    }
+
+    @Override
+    public @Nullable NBTCompound getNBT(byte x, byte y, byte z) {
+        synchronized (lock) {
+            if(wrapped instanceof EmptySegment)
+                wrapped = new SingleSegment(source.properties.defaultValue());
+            return wrapped.getNBT(x, y, z);
+        }
+    }
+
+    @Override
+    public void setNBT(byte x, byte y, byte z, @Nullable NBTCompound compound) {
+        synchronized (lock) {
+            if(wrapped instanceof EmptySegment)
+                wrapped = new SingleSegment(source.properties.defaultValue());
+            wrapped.setNBT(x, y, z, compound);
         }
     }
 

@@ -1,8 +1,19 @@
 package me.pesekjak.landscape;
 
+import mx.kenzie.nbt.NBTCompound;
+import org.jetbrains.annotations.Nullable;
+
 import java.nio.ByteBuffer;
 
+/**
+ * Empty segment containing no data.
+ */
 public class EmptySegment implements Segment {
+
+    @Override
+    public boolean generated() {
+        throw new UnsupportedOperationException();
+    }
 
     @Override
     public String[] palette() {
@@ -21,6 +32,16 @@ public class EmptySegment implements Segment {
 
     @Override
     public void set(byte x, byte y, byte z, String value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public @Nullable NBTCompound getNBT(byte x, byte y, byte z) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setNBT(byte x, byte y, byte z, @Nullable NBTCompound compound) {
         throw new UnsupportedOperationException();
     }
 
