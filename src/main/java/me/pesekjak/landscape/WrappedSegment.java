@@ -56,17 +56,39 @@ public class WrappedSegment implements Segment {
     }
 
     @Override
+    public String[] biomePalette() {
+        synchronized (lock) {
+            return wrapped.biomePalette();
+        }
+    }
+
+    @Override
+    public BiomeData biomeData() {
+        synchronized (lock) {
+            if(wrapped instanceof EmptySegment) createNewSegment();
+            return wrapped.biomeData();
+        }
+    }
+
+    @Override
     public void fill(String value) {
         synchronized (lock) {
-            wrapped = new SingleSegment(value);
+            wrapped = new SingleSegment(value, wrapped.biomeData() != null ? wrapped.biomeData() : new BiomeData(source.properties.defaultBiome()));
+        }
+    }
+
+    @Override
+    public void fillBiome(String value) {
+        synchronized (lock) {
+            if(wrapped instanceof EmptySegment) createNewSegment();
+            wrapped.fillBiome(value);
         }
     }
 
     @Override
     public String get(byte x, byte y, byte z) {
-        if(wrapped instanceof EmptySegment)
-            wrapped = new SingleSegment(source.properties.defaultValue());
         synchronized (lock) {
+            if(wrapped instanceof EmptySegment) createNewSegment();
             return wrapped.get(x, y, z);
         }
     }
@@ -75,10 +97,10 @@ public class WrappedSegment implements Segment {
     public void set(byte x, byte y, byte z, String value) {
         synchronized (lock) {
             if(wrapped instanceof EmptySegment)
-                wrapped = new StandardSegment(source.properties.defaultValue());
+                wrapped = new StandardSegment(source.properties.defaultValue(), new BiomeData(source.properties.defaultBiome()));
             else if(wrapped instanceof SingleSegment) {
                 if(wrapped.nbtPalette().length == 0)
-                    wrapped = new StandardSegment(((SingleSegment) wrapped).value);
+                    wrapped = new StandardSegment(((SingleSegment) wrapped).value, new BiomeData(source.properties.defaultBiome()));
                 else
                     wrapped = new StandardSegment(wrapped);
             } else if(wrapped instanceof StandardSegment && wrapped.palette().length == 256)
@@ -91,8 +113,7 @@ public class WrappedSegment implements Segment {
     @Override
     public @Nullable NBTCompound getNBT(byte x, byte y, byte z) {
         synchronized (lock) {
-            if(wrapped instanceof EmptySegment)
-                wrapped = new SingleSegment(source.properties.defaultValue());
+            if(wrapped instanceof EmptySegment) createNewSegment();
             return wrapped.getNBT(x, y, z);
         }
     }
@@ -100,9 +121,24 @@ public class WrappedSegment implements Segment {
     @Override
     public void setNBT(byte x, byte y, byte z, @Nullable NBTCompound compound) {
         synchronized (lock) {
-            if(wrapped instanceof EmptySegment)
-                wrapped = new SingleSegment(source.properties.defaultValue());
+            if(wrapped instanceof EmptySegment) createNewSegment();
             wrapped.setNBT(x, y, z, compound);
+        }
+    }
+
+    @Override
+    public String getBiome(byte x, byte y, byte z) {
+        synchronized (lock) {
+            if(wrapped instanceof EmptySegment) createNewSegment();
+            return wrapped.getBiome(x, y, z);
+        }
+    }
+
+    @Override
+    public void setBiome(byte x, byte y, byte z, String value) {
+        synchronized (lock) {
+            if(wrapped instanceof EmptySegment) createNewSegment();
+            wrapped.setBiome(x, y, z, value);
         }
     }
 
@@ -117,7 +153,13 @@ public class WrappedSegment implements Segment {
 
     @Override
     public void push() {
-        source.push(this, index);
+        synchronized (lock) {
+            source.push(this, index);
+        }
+    }
+
+    private void createNewSegment() {
+        wrapped = new SingleSegment(source.properties.defaultValue(), new BiomeData(source.properties.defaultBiome()));
     }
 
 }

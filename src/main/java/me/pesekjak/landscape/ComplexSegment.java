@@ -21,6 +21,7 @@ public class ComplexSegment implements Segment {
     String[] palette;
     short[] data;
     final byte[][] nbt;
+    final BiomeData biomeData;
 
     static ComplexSegment read(ReadableByteChannel input) throws IOException {
         ByteBuffer buf = ByteBuffer.allocate(2);
@@ -84,23 +85,25 @@ public class ComplexSegment implements Segment {
             }
         }
 
-        return new ComplexSegment(palette, data, nbt);
+        return new ComplexSegment(palette, data, nbt, BiomeData.read(input));
     }
 
-    ComplexSegment(String value) {
-        this(value, new byte[4096][]);
+    ComplexSegment(String value, BiomeData biomeData) {
+        this(value, new byte[4096][], biomeData);
     }
 
-    ComplexSegment(String value, byte[][] nbt) {
+    ComplexSegment(String value, byte[][] nbt, BiomeData biomeData) {
         this.palette = new String[]{value};
         this.data = new short[4096];
         this.nbt = nbt;
+        this.biomeData = biomeData;
     }
 
     ComplexSegment(Segment source) {
         this.palette = source.palette();
         this.data = new short[4096];
         this.nbt = new byte[4096][];
+        this.biomeData = source.biomeData();
         if(palette.length == 1 && source.nbtPalette().length == 0)
             return;
         for (byte x = 0; x < 16; x++) {
@@ -113,16 +116,17 @@ public class ComplexSegment implements Segment {
         }
     }
 
-    private ComplexSegment(String[] palette, short[] data) {
-        this(palette, data, new byte[4096][]);
+    private ComplexSegment(String[] palette, short[] data, BiomeData biomeData) {
+        this(palette, data, new byte[4096][], biomeData);
     }
 
-    private ComplexSegment(String[] palette, short[] data, byte[][] nbt) {
+    private ComplexSegment(String[] palette, short[] data, byte[][] nbt, BiomeData biomeData) {
         if(palette.length > 4096) throw new IllegalStateException();
         if(data.length != 4096) throw new IllegalStateException();
         this.palette = palette;
         this.data = data;
         this.nbt = nbt;
+        this.biomeData = biomeData;
     }
 
     @Override
@@ -151,8 +155,23 @@ public class ComplexSegment implements Segment {
     }
 
     @Override
+    public String[] biomePalette() {
+        return biomeData.palette();
+    }
+
+    @Override
+    public BiomeData biomeData() {
+        return biomeData;
+    }
+
+    @Override
     public void fill(String value) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void fillBiome(String value) {
+        biomeData.fill(value);
     }
 
     @Override
@@ -210,6 +229,16 @@ public class ComplexSegment implements Segment {
     }
 
     @Override
+    public String getBiome(byte x, byte y, byte z) {
+        return biomeData.get(x, y, z);
+    }
+
+    @Override
+    public void setBiome(byte x, byte y, byte z, String value) {
+        biomeData.set(x, y, z, value);
+    }
+
+    @Override
     public ByteBuffer serialize() {
         reducePalette();
         ByteBuffer[] buffers = new ByteBuffer[palette.length];
@@ -231,8 +260,11 @@ public class ComplexSegment implements Segment {
 
         String[] nbtPalette = nbtPalette();
 
-        if(nbtPalette.length == 0)
-            return buf.putShort((short) 0).rewind();
+        if(nbtPalette.length == 0) {
+            buf.putShort((short) 0).rewind();
+            ByteBuffer biomes = biomeData.serialize();
+            return ByteBuffer.allocate(buf.capacity() + biomes.capacity()).put(buf).put(biomes).rewind();
+        }
 
         short[] nbtPaletteMap = new short[nbtPalette.length];
         for (int i = 0; i < nbtPaletteMap.length; i++) {
@@ -274,7 +306,9 @@ public class ComplexSegment implements Segment {
         for (byte[] nbt : allNBT)
             buf.put(nbt);
 
-        return buf.rewind();
+        buf.rewind();
+        ByteBuffer biomes = biomeData.serialize();
+        return ByteBuffer.allocate(buf.capacity() + biomes.capacity()).put(buf).put(biomes).rewind();
     }
 
     @Override

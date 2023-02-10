@@ -180,7 +180,11 @@ public class Landscape {
     public void flush() {
         final Segment[] toFlush = new Segment[height / 16 * 16 * 16];
         synchronized (lock) {
-            if(!channel.isOpen()) return;
+            try {
+                if (!channel.isOpen()) reopenChannel();
+            } catch (IOException exception) {
+                return;
+            }
             if (weakSegments.size() == 0) {
                 boolean empty = true;
                 for (Segment segment : segments) {

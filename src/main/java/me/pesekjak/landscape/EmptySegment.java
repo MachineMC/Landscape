@@ -26,7 +26,22 @@ public class EmptySegment implements Segment {
     }
 
     @Override
+    public String[] biomePalette() {
+        return new String[0];
+    }
+
+    @Override
+    public BiomeData biomeData() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public void fill(String value) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void fillBiome(String value) {
         throw new UnsupportedOperationException();
     }
 
@@ -42,6 +57,16 @@ public class EmptySegment implements Segment {
 
     @Override
     public void setNBT(byte x, byte y, byte z, @Nullable NBTCompound compound) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String getBiome(byte x, byte y, byte z) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void setBiome(byte x, byte y, byte z, String value) {
         throw new UnsupportedOperationException();
     }
 

@@ -33,10 +33,26 @@ public interface Segment {
     String[] nbtPalette();
 
     /**
+     * @return biome palette of this segment
+     */
+    String[] biomePalette();
+
+    /**
+     * @return biome data of this segment
+     */
+    BiomeData biomeData();
+
+    /**
      * Fills the whole segment with a single value.
      * @param value value to fill the segment with
      */
     void fill(String value);
+
+    /**
+     * Fills the whole segment with a single biome.
+     * @param value biome to fill the segment with
+     */
+    void fillBiome(String value);
 
     default String get(int x, int y, int z) {
         return get((byte) x, (byte) y, (byte) z);
@@ -107,6 +123,38 @@ public interface Segment {
     default void resetNBT(int x, int y, int z) {
         setNBT(x, y, z, null);
     }
+
+    default String getBiome(int x, int y, int z) {
+        return getBiome((byte) x, (byte) y, (byte) z);
+    }
+
+    /**
+     * Returns the biome located in the segment at given coordinates.
+     * <p>
+     * Coordinates are from 0 to 15 but the biome data contain only 64 (4x4x4) entries,
+     * so (0, 0, 0) and (3, 0, 0) are effectively the same.
+     * @param x relative x coordinate
+     * @param y relative y coordinate
+     * @param z relative z coordinate
+     * @return value at given coordinates
+     */
+    String getBiome(byte x, byte y, byte z);
+
+    default void setBiome(int x, int y, int z, String value) {
+        setBiome((byte) x, (byte) y, (byte) z, value);
+    }
+
+    /**
+     * Changes the biome at given coordinates.
+     * <p>
+     * Coordinates are from 0 to 15 but the biome data contain only 64 (4x4x4) entries,
+     * so (0, 0, 0) and (3, 0, 0) are effectively the same.
+     * @param x relative x coordinate
+     * @param y relative y coordinate
+     * @param z relative z coordinate
+     * @param value new value
+     */
+    void setBiome(byte x, byte y, byte z, String value);
 
     default Entry getEntry(byte x, byte y, byte z) {
         return new Entry(get(x, y, z), getNBT(x, y, z));

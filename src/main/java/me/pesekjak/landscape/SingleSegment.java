@@ -18,6 +18,7 @@ public class SingleSegment implements Segment {
     final String value;
     final byte[][] nbt;
     private int nbtCounter = 0;
+    final BiomeData biomeData;
 
     static SingleSegment read(ReadableByteChannel input) throws IOException {
         ByteBuffer buf = ByteBuffer.allocate(2);
@@ -37,7 +38,7 @@ public class SingleSegment implements Segment {
         input.read(buf);
         short nbtPalette = buf.rewind().getShort();
         if(nbtPalette == 0)
-            return new SingleSegment(value);
+            return new SingleSegment(value, BiomeData.read(input));
 
         byte[][] nbt = new byte[4096][];
         buf = ByteBuffer.allocate(4);
@@ -53,17 +54,17 @@ public class SingleSegment implements Segment {
                 compound.write(os);
                 nbt[i] = os.toByteArray();
             }
-            return new SingleSegment(value, nbt);
+            return new SingleSegment(value, nbt, BiomeData.read(input));
         } catch (IOException exception) {
             throw new RuntimeException(exception);
         }
     }
 
-    SingleSegment(String value) {
-        this(value, new byte[4096][]);
+    SingleSegment(String value, BiomeData biomeData) {
+        this(value, new byte[4096][], biomeData);
     }
 
-    SingleSegment(String value, byte[][] nbt) {
+    SingleSegment(String value, byte[][] nbt, BiomeData biomeData) {
         this.value = value;
         if(nbt.length != 4096)
             throw new IllegalStateException();
@@ -71,6 +72,7 @@ public class SingleSegment implements Segment {
         for (byte[] compound : nbt) {
             if(compound != null) nbtCounter++;
         }
+        this.biomeData = biomeData;
     }
 
     @Override
@@ -89,8 +91,23 @@ public class SingleSegment implements Segment {
     }
 
     @Override
+    public String[] biomePalette() {
+        return biomeData.palette();
+    }
+
+    @Override
+    public BiomeData biomeData() {
+        return biomeData;
+    }
+
+    @Override
     public void fill(String value) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void fillBiome(String value) {
+        biomeData.fill(value);
     }
 
     @Override
@@ -135,6 +152,16 @@ public class SingleSegment implements Segment {
     }
 
     @Override
+    public String getBiome(byte x, byte y, byte z) {
+        return biomeData.get(x, y, z);
+    }
+
+    @Override
+    public void setBiome(byte x, byte y, byte z, String value) {
+        biomeData.set(x, y, z, value);
+    }
+
+    @Override
     public ByteBuffer serialize() {
         byte[] palette = value.getBytes(StandardCharsets.UTF_8);
         ByteBuffer header = ByteBuffer.allocate(8 + palette.length);
@@ -142,8 +169,9 @@ public class SingleSegment implements Segment {
         header.putInt(palette.length);
         header.put(palette);
         if(nbtCounter == 0) {
-            header.putShort((short) 0);
-            return header.rewind();
+            header.putShort((short) 0).rewind();
+            ByteBuffer biomes = biomeData.serialize();
+            return ByteBuffer.allocate(header.capacity() + biomes.capacity()).put(header).put(biomes).rewind();
         }
         header.putShort((short) 1);
 
@@ -166,7 +194,9 @@ public class SingleSegment implements Segment {
         for (byte[] compound : nbt)
             buf.put(compound != null ? compound : emptyCompound);
 
-        return buf.rewind();
+        buf.rewind();
+        ByteBuffer biomes = biomeData.serialize();
+        return ByteBuffer.allocate(header.capacity() + biomes.capacity()).put(buf).put(biomes).rewind();
     }
 
     @Override
