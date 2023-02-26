@@ -1,189 +1,205 @@
 package me.pesekjak.landscape;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import mx.kenzie.nbt.NBTCompound;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.BitSet;
 
 /**
- * Represents a 16x16x16 area of blocks in a Landscape region.
+ * Represents a Landscape Segment (16x16x16 area of blocks).
+ * <p>
+ * Each segment contains block palette, biome palette (4x4x4) and
+ * additional compound where extra data can be saved to, all operations
+ * are synchronized internally.
+ * <p>
+ * Segments can be read from and will be forgotten once they are no longer
+ * referenced, to write changes to the segment that should be saved
+ * later {@link Segment#push()} is used.
  */
-public interface Segment {
+public class Segment {
 
-    static int encode(byte x, byte y, byte z) {
-        int index = z << 8;
-        index |= y << 4;
-        index |= x;
+    private static final int BLOCKS_DIMENSION = 16;
+    private static final int BIOMES_DIMENSION = 4;
+    private static final int ENTRIES = 4096; // BLOCKS_DIMENSION^3
+
+    private final Landscape source;
+    private final LandscapeHandler handler;
+    private final int index;
+
+    private final ValueContainer blocks;
+    private final ValueContainer biomes;
+
+    private final NBTCompound[] nbt;
+
+    private final BitSet tickingBlocks;
+
+    private final NBTCompound data;
+
+    private final Object lock = new Object();
+
+    protected Segment(Landscape source, int index) {
+        this.source = source;
+        this.index = index;
+        this.handler = source.handler;
+
+        blocks = new WrapperContainer(BLOCKS_DIMENSION, handler::getDefaultType);
+        biomes = new WrapperContainer(BIOMES_DIMENSION, handler::getDefaultBiome);
+
+        nbt = new NBTCompound[ENTRIES];
+        tickingBlocks = new BitSet(ENTRIES);
+
+        data = new NBTCompound();
+    }
+
+    protected Segment(Landscape source, int index, ByteBuffer buf) throws IOException {
+        this.source = source;
+        this.index = index;
+        this.handler = source.handler;
+
+        blocks = WrapperContainer.read(buf, BLOCKS_DIMENSION, handler::getDefaultType);
+        biomes = WrapperContainer.read(buf, BIOMES_DIMENSION, handler::getDefaultType);
+
+        nbt = new NBTCompound[ENTRIES];
+        BitSet nbtPositions = readBitSet(buf);
+        if(!nbtPositions.isEmpty()) {
+            for (int i = 0; i < ENTRIES; i++) {
+                if(!nbtPositions.get(i)) continue;
+                nbt[i] = readCompound(buf);
+            }
+        }
+
+        tickingBlocks = readBitSet(buf);
+
+        data = readCompound(buf);
+    }
+
+    public Landscape getSource() {
+        return source;
+    }
+
+    public int getIndex() {
         return index;
     }
 
-    /**
-     * @return whether the segment has been generated before
-     */
-    boolean generated();
-
-    /**
-     * @return copy of palette of this segment
-     */
-    String[] palette();
-
-    /**
-     * @return entries in the palette that store nbt compounds
-     */
-    String[] nbtPalette();
-
-    /**
-     * @return biome palette of this segment
-     */
-    String[] biomePalette();
-
-    /**
-     * @return biome data of this segment
-     */
-    BiomeData biomeData();
-
-    /**
-     * Fills the whole segment with a single value.
-     * @param value value to fill the segment with
-     */
-    void fill(String value);
-
-    /**
-     * Fills the whole segment with a single biome.
-     * @param value biome to fill the segment with
-     */
-    void fillBiome(String value);
-
-    default String get(int x, int y, int z) {
-        return get((byte) x, (byte) y, (byte) z);
+    public NBTCompound getDataCompound() {
+        return data;
     }
 
-    /**
-     * Returns a value located in the segment at given coordinates.
-     * @param x relative x coordinate
-     * @param y relative y coordinate
-     * @param z relative z coordinate
-     * @return value at given coordinates
-     */
-    String get(byte x, byte y, byte z);
-
-    default void set(int x, int y, int z, String value) {
-        set((byte) x, (byte) y, (byte) z, value);
+    public void push() {
+        source.push(this, index);
     }
 
-    default void set(byte x, byte y, byte z, String value, @Nullable NBTCompound compound) {
-        set(x, y, z, value);
-        setNBT(x, y, z, compound);
+    public String getBlock(int x, int y, int z) {
+        return blocks.get(x, y, z);
     }
 
-    default void set(int x, int y, int z, String value, @Nullable NBTCompound compound) {
-        set(x, y, z, value);
-        setNBT(x, y, z, compound);
+    public NBTCompound getNBT(int x, int y, int z) {
+        synchronized (lock) {
+            final int index = ValueContainer.index(x, y, z, BLOCKS_DIMENSION);
+            if (nbt[index] != null)
+                return nbt[index];
+            nbt[index] = new NBTCompound();
+            return nbt[index];
+        }
     }
 
-    /**
-     * Changes a single entry in the palette.
-     * @param x relative x coordinate
-     * @param y relative y coordinate
-     * @param z relative z coordinate
-     * @param value new value
-     */
-    void set(byte x, byte y, byte z, String value);
-
-    default @Nullable NBTCompound getNBT(int x, int y, int z) {
-        return getNBT((byte) x, (byte) y, (byte) z);
+    public boolean isTicking(int x, int y, int z) {
+        synchronized (lock) {
+            return tickingBlocks.get(ValueContainer.index(x, y, z, BLOCKS_DIMENSION));
+        }
     }
 
-    /**
-     * Returns the nbt compound located in the segment at given coordinates.
-     * @param x relative x coordinate
-     * @param y relative y coordinate
-     * @param z relative z coordinate
-     * @return nbt compound at given coordinates
-     */
-    @Nullable NBTCompound getNBT(byte x, byte y, byte z);
-
-    default void setNBT(int x, int y, int z, @Nullable NBTCompound compound) {
-        setNBT((byte) x, (byte) y, (byte) z, compound);
+    public void getAllTicking(CoordinatesConsumer consumer) {
+        for (int x = 0; x < 16; x++)
+            for (int y = 0; y < 16; y++)
+                for (int z = 0; z < 16; z++)
+                    if(isTicking(x, y, z)) consumer.accept(x, y, z);
     }
 
-    /**
-     * Changes nbt compound at given coordinates
-     * @param x relative x coordinate
-     * @param y relative y coordinate
-     * @param z relative z coordinate
-     * @param compound new nbt compound
-     */
-    void setNBT(byte x, byte y, byte z, @Nullable NBTCompound compound);
-
-    default void resetNBT(byte x, byte y, byte z) {
-        setNBT(x, y, z, null);
+    public void setBlock(int x, int y, int z, String type, @Nullable NBTCompound compound, boolean isTicking) {
+        blocks.set(x, y, z, type);
+        final int index = ValueContainer.index(x, y, z, BLOCKS_DIMENSION);
+        synchronized (lock) {
+            nbt[index] = compound;
+            tickingBlocks.set(index, isTicking);
+        }
     }
 
-    default void resetNBT(int x, int y, int z) {
-        setNBT(x, y, z, null);
+    public String getBiome(int x, int y, int z) {
+        return biomes.get(x / BIOMES_DIMENSION, y / BIOMES_DIMENSION, z / BIOMES_DIMENSION);
     }
 
-    default String getBiome(int x, int y, int z) {
-        return getBiome((byte) x, (byte) y, (byte) z);
+    public void setBiome(int x, int y, int z, String type) {
+        biomes.set(x / BIOMES_DIMENSION, y / BIOMES_DIMENSION, z / BIOMES_DIMENSION, type);
     }
 
-    /**
-     * Returns the biome located in the segment at given coordinates.
-     * <p>
-     * Coordinates are from 0 to 15 but the biome data contain only 64 (4x4x4) entries,
-     * so (0, 0, 0) and (3, 0, 0) are effectively the same.
-     * @param x relative x coordinate
-     * @param y relative y coordinate
-     * @param z relative z coordinate
-     * @return value at given coordinates
-     */
-    String getBiome(byte x, byte y, byte z);
+    public ByteBuffer serialize() {
+        ByteBuf unpooled = Unpooled.buffer();
+        unpooled.writeBytes(blocks.serialize());
+        unpooled.writeBytes(biomes.serialize());
 
-    default void setBiome(int x, int y, int z, String value) {
-        setBiome((byte) x, (byte) y, (byte) z, value);
+        synchronized (lock) {
+            BitSet nbtPositions = new BitSet(ENTRIES);
+            for (int i = 0; i < nbt.length; i++) {
+                if (nbt[i] == null || nbt[i].isEmpty()) continue;
+                nbtPositions.set(i);
+            }
+            writeBitSet(unpooled, nbtPositions);
+            for (NBTCompound compound : nbt) {
+                if (compound != null) writeCompound(unpooled, compound);
+            }
+
+            writeBitSet(unpooled, tickingBlocks);
+
+            writeCompound(unpooled, data);
+        }
+
+        ByteBuffer buf = ByteBuffer.allocate(unpooled.writerIndex());
+        unpooled.readBytes(buf);
+        return buf.rewind();
     }
 
-    /**
-     * Changes the biome at given coordinates.
-     * <p>
-     * Coordinates are from 0 to 15 but the biome data contain only 64 (4x4x4) entries,
-     * so (0, 0, 0) and (3, 0, 0) are effectively the same.
-     * @param x relative x coordinate
-     * @param y relative y coordinate
-     * @param z relative z coordinate
-     * @param value new value
-     */
-    void setBiome(byte x, byte y, byte z, String value);
-
-    default Entry getEntry(byte x, byte y, byte z) {
-        return new Entry(get(x, y, z), getNBT(x, y, z));
+    private BitSet readBitSet(ByteBuffer buf) {
+        byte[] data = new byte[Byte.toUnsignedInt(buf.get())];
+        buf.get(data);
+        return BitSet.valueOf(data);
     }
 
-    default Entry getEntry(int x, int y, int z) {
-        return new Entry(get(x, y, z), getNBT(x, y, z));
+    private void writeBitSet(ByteBuf buf, BitSet bitSet) {
+        byte[] data = bitSet.toByteArray();
+        buf.writeByte(data.length);
+        buf.writeBytes(data);
     }
 
-    default void setEntry(byte x, byte y, byte z, Entry entry) {
-        set(x, y, z, entry.value, entry.nbt);
+    private NBTCompound readCompound(ByteBuffer buf) {
+        byte[] data = new byte[buf.getInt()];
+        buf.get(data);
+        try (ByteArrayInputStream is = new ByteArrayInputStream(data)) {
+            NBTCompound compound = new NBTCompound();
+            compound.readAll(is);
+            return compound;
+        } catch (Exception exception) {
+            exception.printStackTrace();
+            return new NBTCompound();
+        }
     }
 
-    default void setEntry(int x, int y, int z, Entry entry) {
-        set(x, y, z, entry.value, entry.nbt);
+    private void writeCompound(ByteBuf buf, NBTCompound compound) {
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        compound.writeAll(os);
+        byte[] data = os.toByteArray();
+        buf.writeInt(data.length).writeBytes(data);
     }
 
-    /**
-     * Serializes the segment.
-     */
-    ByteBuffer serialize();
-
-    /**
-     * Pushes the changes of the segment to the Landscape to save.
-     */
-    void push();
-
-    record Entry(String value, @Nullable NBTCompound nbt) {
-
+    @FunctionalInterface
+    interface CoordinatesConsumer {
+        void accept(int x, int y, int z);
     }
 
 }
