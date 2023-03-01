@@ -187,7 +187,8 @@ public class Landscape {
                     channel.position(HEADER_SIZE + (long) i * TABLE_ENTRY_SIZE);
                     channel.write(ByteBuffer.allocate(TABLE_ENTRY_SIZE)
                             .putInt((int) (touched + temp.position()))
-                            .putInt(original.capacity()));
+                            .putInt(original.capacity())
+                            .rewind());
                     temp.write(original);
                     continue;
                 }
@@ -220,8 +221,13 @@ public class Landscape {
 
             if(touched != -1) {
                 channel.position(touched);
+                long size = temp.size();
+                long targetPos = channel.position() + size;
                 temp.position(0);
-                channel.write(ByteChannelUtil.read(temp, (int) temp.size()));
+                do {
+                    int allocated = size < 2000000000 ? (int) size : 2000000000; // not exceeding byte buffer limit just in case
+                    channel.write(ByteChannelUtil.read(temp, allocated));
+                } while (targetPos != channel.position());
                 channel.truncate(channel.position());
             }
             segments = new Segment[height / 16 * 16 * 16];
@@ -359,13 +365,27 @@ public class Landscape {
     private void checkValidity() throws IOException {
         if(!channel.isOpen())
             openChannel();
+
+        channel.position(VERSION_POINTER);
+        short fileVersion = ByteChannelUtil.readShort(channel);
+        if(version != fileVersion)
+            throw new UnsupportedOperationException("Couldn't load " + file.getName() + " because it has been saved using different landscape version");
+
         channel.position(HEIGHT_POINTER);
         short fileHeight = ByteChannelUtil.readShort(channel);
+        if(height != fileHeight) { // Height in file doesn't match the provided height when loading
+            final int maxY = Math.min(height, fileHeight) / 16;
+            for (int x = 0; x < 16; x++)
+                for (int z = 0; z < 16; z++)
+                    for (int y = 0; y < maxY; y++) {
+                        int index = segmentIndex(x, y ,z);
+                        segments[index] = loadSegment(index);
+                    }
+            channel.truncate(0);
+            writeDefaults();
+            flush();
+        }
 
-        if(height == fileHeight) return;
-
-        // Height in file doesn't match the provided height when loading
-        throw new IllegalStateException(); // TODO Fixing height changes
     }
 
     /**

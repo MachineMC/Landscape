@@ -18,6 +18,10 @@ import java.util.BitSet;
  * additional compound where extra data can be saved to, all operations
  * are synchronized internally.
  * <p>
+ * When changing a block entry, other information at given coordinates such
+ * as NBT or whether the block is ticking is not changed, for changing
+ * everything at once use {@link Segment#setBlock(int, int, int, String, NBTCompound, boolean)}
+ * <p>
  * Segments can be read from and will be forgotten once they are no longer
  * referenced, to write changes to the segment that should be saved
  * later {@link Segment#push()} is used.
@@ -99,6 +103,30 @@ public class Segment {
         return blocks.get(x, y, z);
     }
 
+    public void setBlock(int x, int y, int z, String value) {
+        blocks.set(x, y, z, value);
+    }
+
+    public void getAllBlocks(EntryConsumer<String> consumer) {
+        blocks.getAll(consumer::accept);
+    }
+
+    public void setAllBlocks(EntrySupplier<String> supplier) {
+        blocks.setAll((x, y, z) -> {
+            String value = supplier.get(x, y, z);
+            if(value == null) throw new NullPointerException();
+            return value;
+        });
+    }
+
+    public void replaceAllBlocks(EntryFunction<String> function) {
+        blocks.replaceAll((x, y, z, value) -> {
+            String changed = function.apply(x, y, z, value);
+            if(changed == null) throw new NullPointerException();
+            return changed;
+        });
+    }
+
     public NBTCompound getNBT(int x, int y, int z) {
         synchronized (lock) {
             final int index = ValueContainer.index(x, y, z, BLOCKS_DIMENSION);
@@ -109,26 +137,71 @@ public class Segment {
         }
     }
 
+    public void setNBT(int x, int y, int z, @Nullable NBTCompound compound) {
+        synchronized (lock) {
+            nbt[ValueContainer.index(x, y, z, BLOCKS_DIMENSION)] = compound;
+        }
+    }
+
+    public void getAllNBT(EntryConsumer<NBTCompound> consumer) {
+        for (int x = 0; x < 16; x++)
+            for (int y = 0; y < 16; y++)
+                for (int z = 0; z < 16; z++)
+                    consumer.accept(x, y, z, getNBT(x, y, z));
+    }
+
+    public void setAllNBT(EntrySupplier<@Nullable NBTCompound> supplier) {
+        for (int x = 0; x < 16; x++)
+            for (int y = 0; y < 16; y++)
+                for (int z = 0; z < 16; z++)
+                    setNBT(x, y, z, supplier.get(x, y, z));
+    }
+
+    public void replaceAllNBT(EntryFunction<@Nullable NBTCompound> function) {
+        for (int x = 0; x < 16; x++)
+            for (int y = 0; y < 16; y++)
+                for (int z = 0; z < 16; z++)
+                    setNBT(x, y, z, function.apply(x, y, z, getNBT(x, y, z)));
+    }
+
     public boolean isTicking(int x, int y, int z) {
         synchronized (lock) {
             return tickingBlocks.get(ValueContainer.index(x, y, z, BLOCKS_DIMENSION));
         }
     }
 
-    public void getAllTicking(CoordinatesConsumer consumer) {
+    public void setTicking(int x, int y, int z, boolean ticking) {
+        synchronized (lock) {
+            tickingBlocks.set(ValueContainer.index(x, y, z, BLOCKS_DIMENSION), ticking);
+        }
+    }
+
+    public void getAllTicking(EntryConsumer<Boolean> consumer) {
         for (int x = 0; x < 16; x++)
             for (int y = 0; y < 16; y++)
                 for (int z = 0; z < 16; z++)
-                    if(isTicking(x, y, z)) consumer.accept(x, y, z);
+                    consumer.accept(x, y, z, isTicking(x, y, z));
+    }
+
+    public void setAllTicking(EntrySupplier<Boolean> supplier) {
+        for (int x = 0; x < 16; x++)
+            for (int y = 0; y < 16; y++)
+                for (int z = 0; z < 16; z++)
+                    setTicking(x, y, z, supplier.get(x, y, z));
+    }
+
+    public void replaceAllTicking(EntryFunction<Boolean> function) {
+        for (int x = 0; x < 16; x++)
+            for (int y = 0; y < 16; y++)
+                for (int z = 0; z < 16; z++)
+                    setTicking(x, y, z, function.apply(x, y, z, isTicking(x, y, z)));
     }
 
     public void setBlock(int x, int y, int z, String type, @Nullable NBTCompound compound, boolean isTicking) {
-        blocks.set(x, y, z, type);
-        final int index = ValueContainer.index(x, y, z, BLOCKS_DIMENSION);
-        synchronized (lock) {
-            nbt[index] = compound;
-            tickingBlocks.set(index, isTicking);
-        }
+        if(type == null) throw new NullPointerException();
+        setBlock(x, y, z, type);
+        setNBT(x, y, z, compound);
+        setTicking(x, y, z, isTicking);
     }
 
     public String getBiome(int x, int y, int z) {
@@ -136,7 +209,40 @@ public class Segment {
     }
 
     public void setBiome(int x, int y, int z, String type) {
+        if(type == null) throw new NullPointerException();
         biomes.set(x / BIOMES_DIMENSION, y / BIOMES_DIMENSION, z / BIOMES_DIMENSION, type);
+    }
+
+    public void getAllBiomes(EntryConsumer<String> consumer) {
+        biomes.getAll((x, y, z, value) -> {
+            for (int rx = 0; rx < BIOMES_DIMENSION; rx++)
+                for (int ry = 0; ry < BIOMES_DIMENSION; ry++)
+                    for (int rz = 0; rz < BIOMES_DIMENSION; rz++)
+                        consumer.accept(x+rx, y+ry, z+rz, value);
+        });
+    }
+
+    public void setAllBiomes(EntrySupplier<String> supplier) {
+        biomes.setAll((x, y, z) -> {
+            String value = supplier.get(x, y, z);
+            if(value == null) throw new NullPointerException();
+            return value;
+        });
+    }
+
+    public void replaceAllBiomes(EntryFunction<String> function) {
+        biomes.replaceAll((x, y, z, value) -> {
+            String first = null;
+            for (int rx = 0; rx < BIOMES_DIMENSION; rx++)
+                for (int ry = 0; ry < BIOMES_DIMENSION; ry++)
+                    for (int rz = 0; rz < BIOMES_DIMENSION; rz++) {
+                        String next = function.apply(x + rx, y + ry, z + rz, value);
+                        if(rx == 0 && ry == 0 && rz == 0)
+                            first = next;
+                    }
+            if(first == null) throw new NullPointerException();
+            return first;
+        });
     }
 
     public ByteBuffer serialize() {
@@ -198,8 +304,18 @@ public class Segment {
     }
 
     @FunctionalInterface
-    interface CoordinatesConsumer {
-        void accept(int x, int y, int z);
+    public interface EntrySupplier<T> {
+        T get(int x, int y, int z);
+    }
+
+    @FunctionalInterface
+    public interface EntryConsumer<T> {
+        void accept(int x, int y, int z, T value);
+    }
+
+    @FunctionalInterface
+    public interface EntryFunction<T> {
+        T apply(int x, int y, int z, T value);
     }
 
 }
