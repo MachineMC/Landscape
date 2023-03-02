@@ -295,7 +295,7 @@ public class Landscape {
             openChannel();
         channel.position(HEADER_SIZE + (long) index * TABLE_ENTRY_SIZE);
         ByteBuffer buf = ByteChannelUtil.read(channel, 8);
-        int position = buf.getInt();
+        long position = Integer.toUnsignedLong(buf.getInt());
         int length = buf.getInt();
         channel.position(position);
         return ByteChannelUtil.read(channel, length).rewind();
