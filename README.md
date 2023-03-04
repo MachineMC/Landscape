@@ -15,6 +15,36 @@ primarily on speed and simplicity originally designed for [Machine](https://gith
 * Easy to use
 * Automatic memory management
 
+## Maven information
+
+Landscape is available from `machine-releases`
+
+#### Maven
+```xml
+<repository>
+    <id>machine-releases</id>
+    <name>MachineMC Repository</name>
+    <url>http://www.machinemc.org/releases</url>
+</repository>
+```
+```xml
+<dependency>
+    <groupId>org.machinemc</groupId>
+    <artifactId>nbt</artifactId>
+    <version>{version}</version>
+</dependency>
+```
+#### Gradle
+```kotlin
+maven {
+    url = uri("http://www.machinemc.org/releases")
+    isAllowInsecureProtocol = true
+}
+```
+```kotlin
+implementation("org.machinemc:landscape:{version}")
+```
+
 ## File format
 
 Name format: `r_x_y.ls`, x and y being the Landscape coordinates
