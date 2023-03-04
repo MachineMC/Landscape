@@ -1,9 +1,9 @@
-package me.pesekjak.landscape;
+package org.machinemc.landscape;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import mx.kenzie.nbt.NBTCompound;
 import org.jetbrains.annotations.Nullable;
+import org.machinemc.nbt.NBTCompound;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

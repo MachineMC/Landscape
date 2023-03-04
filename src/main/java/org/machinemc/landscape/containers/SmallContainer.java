@@ -1,8 +1,8 @@
-package me.pesekjak.landscape.containers;
+package org.machinemc.landscape.containers;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import me.pesekjak.landscape.ValueContainer;
+import org.machinemc.landscape.ValueContainer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,15 +11,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Container that stores each data value as a short, its maximum palette size is 65536.
+ * Container that stores each data value as a byte, its maximum palette size is 256.
  */
-public class BigContainer implements ReducingContainer {
+public class SmallContainer implements ReducingContainer {
 
     private String[] palette;
-    private short[] data;
+    private byte[] data;
     private final int dimension;
 
-    public static BigContainer read(ByteBuffer buffer, int size, int dimension) throws IOException {
+    public static SmallContainer read(ByteBuffer buffer, int size, int dimension) throws IOException {
         assert size <= 256;
         String[] palette = new String[size];
         for (int i = 0; i < size; i++) {
@@ -27,19 +27,18 @@ public class BigContainer implements ReducingContainer {
             buffer.get(utf);
             palette[i] = new String(utf);
         }
-        short[] data = new short[dimension*dimension*dimension];
-        for (int i = 0; i < data.length; i++)
-            data[i] = buffer.getShort();
-        return new BigContainer(palette, data, dimension);
+        byte[] data = new byte[dimension*dimension*dimension];
+        buffer.get(data);
+        return new SmallContainer(palette, data, dimension);
     }
 
-    public BigContainer(String value, int dimension) {
+    public SmallContainer(String value, int dimension) {
         palette = new String[]{value};
-        data = new short[dimension*dimension*dimension];
+        data = new byte[dimension*dimension*dimension];
         this.dimension = dimension;
     }
 
-    private BigContainer(String[] palette, short[] data, int dimension) {
+    private SmallContainer(String[] palette, byte[] data, int dimension) {
         this.palette = palette.clone();
         this.data = data.clone();
         this.dimension = dimension;
@@ -47,7 +46,7 @@ public class BigContainer implements ReducingContainer {
 
     @Override
     public String get(int x, int y, int z) {
-        return palette[Short.toUnsignedInt(data[ValueContainer.index(x, y, z, dimension)])];
+        return palette[Byte.toUnsignedInt(data[ValueContainer.index(x, y, z, dimension)])];
     }
 
     @Override
@@ -60,13 +59,13 @@ public class BigContainer implements ReducingContainer {
 
     @Override
     public void set(int x, int y, int z, String value) {
-        data[ValueContainer.index(x, y, z, dimension)] = (short) getFromPalette(value);
+        data[ValueContainer.index(x, y, z, dimension)] = (byte) getFromPalette(value);
     }
 
     @Override
     public void fill(String value) {
         palette = new String[]{value};
-        data = new short[dimension*dimension*dimension];
+        data = new byte[dimension*dimension*dimension];
     }
 
     @Override
@@ -102,7 +101,7 @@ public class BigContainer implements ReducingContainer {
 
     @Override
     public int getBitsPerEntry() {
-        return Short.SIZE;
+        return Byte.SIZE;
     }
 
     @Override
@@ -120,8 +119,7 @@ public class BigContainer implements ReducingContainer {
             byte[] data = value.getBytes(StandardCharsets.UTF_8);
             unpooled.writeInt(data.length).writeBytes(data);
         }
-        for (short value : data)
-            unpooled.writeShort(value);
+        unpooled.writeBytes(data);
 
         ByteBuffer buf = ByteBuffer.allocate(unpooled.writerIndex());
         unpooled.readBytes(buf);
@@ -131,9 +129,9 @@ public class BigContainer implements ReducingContainer {
     @Override
     public boolean reducePalette() {
         List<String> reduced = new ArrayList<>();
-        short[] newData = new short[dimension*dimension*dimension];
+        byte[] newData = new byte[dimension*dimension*dimension];
         for (int i = 0; i < newData.length; i++) {
-            String value = palette[Short.toUnsignedInt(data[i])];
+            String value = palette[Byte.toUnsignedInt(data[i])];
             int index;
             if((index = reduced.indexOf(value)) != -1) {
                 newData[i] = (byte) index;
@@ -155,7 +153,7 @@ public class BigContainer implements ReducingContainer {
             if(palette[i].equals(value)) return i;
         }
 
-        if(palette.length == 65536) {
+        if(palette.length == 256) {
             if(!reducePalette()) throw new UnsupportedOperationException();
         }
 

@@ -1,6 +1,6 @@
-package me.pesekjak.landscape;
+package org.machinemc.landscape;
 
-import me.pesekjak.landscape.containers.*;
+import org.machinemc.landscape.containers.*;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

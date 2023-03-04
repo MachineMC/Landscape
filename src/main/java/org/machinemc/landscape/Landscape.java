@@ -1,4 +1,4 @@
-package me.pesekjak.landscape;
+package org.machinemc.landscape;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -18,7 +18,7 @@ import java.util.*;
  * <p>
  * Each Landscape is synchronized and multiple instances for
  * the same file can't exist in the system.
- * @see me.pesekjak.landscape.Segment
+ * @see Segment
  */
 public class Landscape {
 
@@ -305,7 +305,7 @@ public class Landscape {
      * Pushes segment reference to the file.
      * @param segment segment to push
      * @param index index of the segment
-     * @see me.pesekjak.landscape.Segment#push()
+     * @see Segment#push()
      */
     protected void push(Segment segment, int index) {
         synchronized (lock) {

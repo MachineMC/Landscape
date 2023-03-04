@@ -1,4 +1,4 @@
-package me.pesekjak.landscape;
+package org.machinemc.landscape;
 
 /**
  * Handles additional actions for Landscape files.

@@ -1,20 +1,47 @@
 plugins {
     java
+    `maven-publish`
 }
 
-group = "me.pesekjak"
-version = "1.0-SNAPSHOT"
+group = "org.machinemc"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
+    maven {
+        url = uri("http://www.machinemc.org/releases")
+        isAllowInsecureProtocol = true
+    }
 }
 
 dependencies {
-    implementation(files("libs/nbt.jar"))
+    implementation("org.machinemc:nbt:1.0.0")
     implementation("io.netty:netty-buffer:4.1.89.Final")
     compileOnly("org.jetbrains:annotations:23.0.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "machine"
+            url = uri("http://www.machinemc.org/releases")
+            credentials(PasswordCredentials::class)
+            authentication {
+                create<BasicAuthentication>("basic")
+            }
+            isAllowInsecureProtocol = true
+        }
+    }
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "org.machinemc"
+            artifactId = "landscape"
+            version = "1.0.0"
+            from(components["java"])
+        }
+    }
 }
 
 tasks {

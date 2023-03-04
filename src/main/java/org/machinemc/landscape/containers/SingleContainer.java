@@ -1,8 +1,8 @@
-package me.pesekjak.landscape.containers;
+package org.machinemc.landscape.containers;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import me.pesekjak.landscape.ValueContainer;
+import org.machinemc.landscape.ValueContainer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

@@ -1,6 +1,6 @@
-package me.pesekjak.landscape.containers;
+package org.machinemc.landscape.containers;
 
-import me.pesekjak.landscape.ValueContainer;
+import org.machinemc.landscape.ValueContainer;
 
 /**
  * Container that automatically reduces its palette before serializing.
