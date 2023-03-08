@@ -271,6 +271,10 @@ public class Segment {
         return buf.rewind();
     }
 
+    public boolean isEmpty() {
+        return blocks.getCount() == 0;
+    }
+
     private BitSet readBitSet(ByteBuffer buf) {
         byte[] data = new byte[Byte.toUnsignedInt(buf.get())];
         buf.get(data);
