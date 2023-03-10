@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.machinemc"
-version = "1.0.0"
+version = "1.0.2"
 
 repositories {
     mavenCentral()
@@ -15,7 +15,7 @@ repositories {
 }
 
 dependencies {
-    implementation("org.machinemc:nbt:1.0.0")
+    implementation("org.machinemc:nbt:1.1.0")
     implementation("io.netty:netty-buffer:4.1.89.Final")
     compileOnly("org.jetbrains:annotations:23.0.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
@@ -38,7 +38,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "org.machinemc"
             artifactId = "landscape"
-            version = "1.0.0"
+            version = "1.0.2"
             from(components["java"])
         }
     }

@@ -245,6 +245,18 @@ public class Segment {
         });
     }
 
+    /**
+     * Fills the entire section with a single block type,
+     * removes all saved nbt compounds and ticking blocks.
+     * @param blockType block type
+     */
+    public void fill(String blockType) {
+        blocks.fill(blockType);
+        for (int i = 0; i < ENTRIES; i++)
+            nbt[i] = null;
+        tickingBlocks.set(0, ENTRIES, false);
+    }
+
     public ByteBuffer serialize() {
         ByteBuf unpooled = Unpooled.buffer();
         unpooled.writeBytes(blocks.serialize());
@@ -295,8 +307,7 @@ public class Segment {
             compound.readAll(is);
             return compound;
         } catch (Exception exception) {
-            exception.printStackTrace();
-            return new NBTCompound();
+            throw new RuntimeException(exception);
         }
     }
 
