@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.machinemc"
-version = "1.0.2"
+version = "1.0.1"
 
 repositories {
     mavenCentral()
@@ -38,7 +38,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "org.machinemc"
             artifactId = "landscape"
-            version = "1.0.2"
+            version = "1.0.1"
             from(components["java"])
         }
     }

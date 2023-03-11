@@ -89,6 +89,7 @@ public class WrapperContainer implements ValueContainer {
             convert(new BigContainer(defaultValue.get(), dimension));
             wrapped.setAll(supplier);
         }
+        reduce();
     }
 
     @Override
@@ -108,6 +109,7 @@ public class WrapperContainer implements ValueContainer {
             convert(new BigContainer(defaultValue.get(), dimension));
             wrapped.replaceAll(function);
         }
+        reduce();
     }
 
     @Override
@@ -141,16 +143,18 @@ public class WrapperContainer implements ValueContainer {
     @Override
     public ByteBuffer serialize() {
         synchronized (lock) {
-            if(wrapped instanceof ReducingContainer reducing)
-                reducing.reducePalette();
-
-            if(wrapped.getCount() <= 256 && wrapped instanceof BigContainer)
-                convert(new SmallContainer(defaultValue.get(), dimension));
-            else if(wrapped.getCount() == 1 && !(wrapped instanceof SingleContainer))
-                wrapped = new SingleContainer(wrapped.getPalette()[0], dimension);
-
+            reduce();
             return wrapped.serialize();
         }
+    }
+
+    private void reduce() {
+        if (wrapped instanceof ReducingContainer reducing)
+            reducing.reducePalette();
+        if (wrapped.getCount() <= 256 && wrapped instanceof BigContainer)
+            convert(new SmallContainer(defaultValue.get(), dimension));
+        else if (wrapped.getCount() == 1 && !(wrapped instanceof SingleContainer))
+            wrapped = new SingleContainer(wrapped.getPalette()[0], dimension);
     }
 
     private void convert(ValueContainer target) {
