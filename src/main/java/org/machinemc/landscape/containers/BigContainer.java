@@ -129,6 +129,11 @@ public class BigContainer implements ReducingContainer {
     }
 
     @Override
+    public void reset() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public boolean reducePalette() {
         List<String> reduced = new ArrayList<>();
         short[] newData = new short[dimension*dimension*dimension];

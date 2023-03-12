@@ -91,6 +91,8 @@ public interface ValueContainer {
 
     ByteBuffer serialize();
 
+    void reset();
+
     /**
      * Special supplier used for operations with the containers.
      */

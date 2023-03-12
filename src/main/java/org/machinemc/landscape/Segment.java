@@ -283,6 +283,17 @@ public class Segment {
         return buf.rewind();
     }
 
+    public void reset() {
+        synchronized (lock) {
+            blocks.reset();
+            biomes.reset();
+            for (int i = 0; i < ENTRIES; i++)
+                nbt[i] = null;
+            tickingBlocks.set(0, ENTRIES, false);
+            data.clear();
+        }
+    }
+
     public boolean isEmpty() {
         return blocks.getCount() == 0;
     }

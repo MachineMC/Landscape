@@ -100,4 +100,9 @@ public class SingleContainer implements ValueContainer {
         return buf.rewind();
     }
 
+    @Override
+    public void reset() {
+        throw new UnsupportedOperationException();
+    }
+
 }

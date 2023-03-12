@@ -71,4 +71,9 @@ public class EmptyContainer implements ValueContainer {
         return ByteBuffer.allocate(2).putShort((short) 0).rewind();
     }
 
+    @Override
+    public void reset() {
+        throw new UnsupportedOperationException();
+    }
+
 }

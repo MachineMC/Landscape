@@ -127,6 +127,11 @@ public class SmallContainer implements ReducingContainer {
     }
 
     @Override
+    public void reset() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
     public boolean reducePalette() {
         List<String> reduced = new ArrayList<>();
         byte[] newData = new byte[dimension*dimension*dimension];

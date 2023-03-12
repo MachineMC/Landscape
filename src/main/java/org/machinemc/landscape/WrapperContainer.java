@@ -148,6 +148,11 @@ public class WrapperContainer implements ValueContainer {
         }
     }
 
+    @Override
+    public void reset() {
+        wrapped = new EmptyContainer();
+    }
+
     private void reduce() {
         if (wrapped instanceof ReducingContainer reducing)
             reducing.reducePalette();
