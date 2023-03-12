@@ -30,7 +30,7 @@ Landscape is available from `machine-releases`
 ```xml
 <dependency>
     <groupId>org.machinemc</groupId>
-    <artifactId>nbt</artifactId>
+    <artifactId>landscape</artifactId>
     <version>{version}</version>
 </dependency>
 ```
