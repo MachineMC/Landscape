@@ -91,6 +91,9 @@ public interface ValueContainer {
 
     ByteBuffer serialize();
 
+    /**
+     * Resets the container to its initial state.
+     */
     void reset();
 
     /**

@@ -3,6 +3,7 @@ package org.machinemc.landscape;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 import org.machinemc.nbt.NBTCompound;
 
 import java.io.ByteArrayInputStream;
@@ -10,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.BitSet;
+import java.util.List;
 
 /**
  * Represents a Landscape Segment (16x16x16 area of blocks).
@@ -245,16 +247,46 @@ public class Segment {
         });
     }
 
-    /**
-     * Fills the entire section with a single block type,
-     * removes all saved nbt compounds and ticking blocks.
-     * @param blockType block type
-     */
     public void fill(String blockType) {
         blocks.fill(blockType);
         for (int i = 0; i < ENTRIES; i++)
             nbt[i] = null;
         tickingBlocks.set(0, ENTRIES, false);
+    }
+
+    public void fillBiome(String biome) {
+        biomes.fill(biome);
+    }
+
+    public boolean isEmpty() {
+        return blocks.getCount() == 0;
+    }
+
+    public @Unmodifiable List<String> getBlockPalette() {
+        return List.of(blocks.getPalette());
+    }
+
+    public int getBlockCount() {
+        return blocks.getCount();
+    }
+
+    public @Unmodifiable List<String> getBiomePalette() {
+        return List.of(biomes.getPalette());
+    }
+
+    public int getBiomesCount() {
+        return biomes.getCount();
+    }
+
+    public void reset() {
+        synchronized (lock) {
+            blocks.reset();
+            biomes.reset();
+            for (int i = 0; i < ENTRIES; i++)
+                nbt[i] = null;
+            tickingBlocks.set(0, ENTRIES, false);
+            data.clear();
+        }
     }
 
     public ByteBuffer serialize() {
@@ -281,21 +313,6 @@ public class Segment {
         ByteBuffer buf = ByteBuffer.allocate(unpooled.writerIndex());
         unpooled.readBytes(buf);
         return buf.rewind();
-    }
-
-    public void reset() {
-        synchronized (lock) {
-            blocks.reset();
-            biomes.reset();
-            for (int i = 0; i < ENTRIES; i++)
-                nbt[i] = null;
-            tickingBlocks.set(0, ENTRIES, false);
-            data.clear();
-        }
-    }
-
-    public boolean isEmpty() {
-        return blocks.getCount() == 0;
     }
 
     private BitSet readBitSet(ByteBuffer buf) {
