@@ -38,7 +38,7 @@ publishing {
         create<MavenPublication>("maven") {
             groupId = "org.machinemc"
             artifactId = "landscape"
-            version = "1.0.2"
+            version = "1.0.3"
             from(components["java"])
         }
     }
