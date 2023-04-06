@@ -11,7 +11,7 @@ primarily on speed and simplicity originally designed for [Machine](https://gith
 * Fast loading and saving times
 * NBT, tile entities, ticking blocks and biomes support
 * Doesn't load whole chunks but only their segments (16x16x16 sections)
-* Multithreading support
+* Thread-safe
 * Easy to use
 * Automatic memory management
 
@@ -78,8 +78,8 @@ boolean isTicking segment.isTicking(0, 0, 0); // whether the block is saved as t
 ```java
 // Writing information about a block at coordinates (0, 0, 0) in the segment
 segment.setBlock(0, 0, 0, "minecraft:cobblestone", compound, false);
-// After writing the information to the segment we need to push it to save the changes
-// even after reference to the segment is lost
+// After writing all the information to the segment we need to push it to
+// make sure the changes save once the landscape instance is flushed
 segment.push();
 
 // ...
