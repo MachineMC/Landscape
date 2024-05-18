@@ -17,14 +17,14 @@ primarily on speed and simplicity originally designed for [Machine](https://gith
 
 ## Maven information
 
-Landscape is available from `machine-releases`
+Landscape is available from `machine-repository-releases`
 
 #### Maven
 ```xml
 <repository>
-    <id>machine-releases</id>
+    <id>machinemc-repository-releases</id>
     <name>MachineMC Repository</name>
-    <url>http://www.machinemc.org/releases</url>
+    <url>https://repo.machinemc.org/releases</url>
 </repository>
 ```
 ```xml
@@ -37,8 +37,7 @@ Landscape is available from `machine-releases`
 #### Gradle
 ```kotlin
 maven {
-    url = uri("http://www.machinemc.org/releases")
-    isAllowInsecureProtocol = true
+    url = uri("https://repo.machinemc.org/releases")
 }
 ```
 ```kotlin

@@ -9,8 +9,7 @@ version = "1.0.3"
 repositories {
     mavenCentral()
     maven {
-        url = uri("http://www.machinemc.org/releases")
-        isAllowInsecureProtocol = true
+        url = uri("https://repo.machinemc.org/releases")
     }
 }
 
@@ -26,12 +25,11 @@ publishing {
     repositories {
         maven {
             name = "machine"
-            url = uri("http://www.machinemc.org/releases")
+            url = uri("https://repo.machinemc.org/releases")
             credentials(PasswordCredentials::class)
             authentication {
                 create<BasicAuthentication>("basic")
             }
-            isAllowInsecureProtocol = true
         }
     }
     publications {
