@@ -331,9 +331,7 @@ public class Segment {
         byte[] data = new byte[buf.getInt()];
         buf.get(data);
         try (ByteArrayInputStream is = new ByteArrayInputStream(data)) {
-            NBTCompound compound = new NBTCompound();
-            compound.readAll(is);
-            return compound;
+            return NBTCompound.readRootCompound(is);
         } catch (Exception exception) {
             throw new RuntimeException(exception);
         }
@@ -341,7 +339,11 @@ public class Segment {
 
     private void writeCompound(ByteBuf buf, NBTCompound compound) {
         ByteArrayOutputStream os = new ByteArrayOutputStream();
-        compound.writeAll(os);
+        try {
+            compound.writeRoot(os);
+        } catch (IOException exception) {
+            throw new RuntimeException(exception);
+        }
         byte[] data = os.toByteArray();
         buf.writeInt(data.length).writeBytes(data);
     }

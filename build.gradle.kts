@@ -14,11 +14,17 @@ repositories {
 }
 
 dependencies {
-    implementation("org.machinemc:nbt:1.1.0")
+    implementation("org.machinemc:nbt-core:2.0.0")
     implementation("io.netty:netty-buffer:4.1.89.Final")
     compileOnly("org.jetbrains:annotations:23.0.0")
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    withSourcesJar()
 }
 
 publishing {
